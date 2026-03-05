@@ -4,15 +4,16 @@ Convert `.udf` files into PDF documents using Python and ReportLab.
 
 ## Features
 
-- Supports UDF files stored as:
-  - raw XML files
-  - ZIP-based archives containing `content.xml`
-- Preserves basic formatting:
+- Accepts UDF input as:
+  - raw XML `.udf`
+  - ZIP-based `.udf` archives containing `content.xml`
+- Preserves core formatting:
   - bold, italic, underline
   - paragraph alignment (left, center, right, justify)
   - line spacing
   - page breaks
-- Uses available system Unicode fonts when generating PDFs
+- Cross-platform font discovery for macOS, Linux, and Windows
+- Supports custom font directory via `UDF_FONT_DIR`
 
 ## Requirements
 
@@ -25,6 +26,12 @@ Install dependencies:
 python3 -m pip install -r requirements.txt
 ```
 
+Windows PowerShell equivalent:
+
+```powershell
+py -m pip install -r requirements.txt
+```
+
 ## Usage
 
 Convert one or more files:
@@ -33,33 +40,40 @@ Convert one or more files:
 python3 converter.py input1.udf [input2.udf ...]
 ```
 
-Output files are created next to the source file, with the `_light.pdf` suffix.
+Windows PowerShell equivalent:
+
+```powershell
+py converter.py input1.udf input2.udf
+```
+
+Output files are created next to each source file with `_light.pdf` suffix.
 
 Example:
 
 - Input: `document.udf`
 - Output: `document_light.pdf`
 
-## Font Notes
+## Font Setup
 
-The script searches for fonts in these locations:
+The converter searches for font files in this order:
 
-- project root
-- `fonts/` directory in the project
-- `~/Library/Fonts`
-- `/Library/Fonts`
-- `/System/Library/Fonts/Supplemental`
-- `/System/Library/Fonts`
+1. `UDF_FONT_DIR` (if set)
+2. `fonts/` in this repository
+3. project root
+4. platform font directories:
+   - macOS: `~/Library/Fonts`, `/Library/Fonts`, `/System/Library/Fonts/...`
+   - Linux: `~/.local/share/fonts`, `~/.fonts`, `/usr/local/share/fonts`, `/usr/share/fonts`
+   - Windows: `%WINDIR%\\Fonts`
 
-Recommended fonts (any one regular variant is required):
+Recommended font family for consistent output: Noto Serif (`Regular`, `Bold`, `Italic`, `BoldItalic`).
 
-- Noto Serif
-- DejaVu Serif
-- Times New Roman
-- Arial
+If no supported regular TTF font is found, the script exits with an explicit error describing searched locations.
 
-If no supported Unicode TTF font is found, conversion fails with an explicit error.
+## Repository Hygiene
 
-## Known Scope
+- `.udf` files are gitignored by default to prevent publishing user/sample data.
+- Generated PDFs are gitignored.
 
-This is a lightweight converter and does not implement every possible UDF feature. It focuses on reliable conversion of core text content and formatting.
+## Scope
+
+This is a lightweight converter and does not implement every possible UDF feature. It is focused on reliable conversion of core text content and formatting.

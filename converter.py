@@ -2,6 +2,7 @@ import os
 import sys
 import zipfile
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
@@ -32,21 +33,58 @@ def load_udf_root(udf_file):
     return tree.getroot()
 
 
-def find_font_path(candidates):
-    search_dirs = [
-        os.path.dirname(os.path.abspath(__file__)),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts"),
-        os.path.expanduser("~/Library/Fonts"),
-        "/Library/Fonts",
-        "/System/Library/Fonts/Supplemental",
-        "/System/Library/Fonts",
-    ]
+def get_font_search_dirs():
+    project_dir = Path(__file__).resolve().parent
+    search_dirs = [project_dir / "fonts", project_dir]
 
+    user_font_dir = os.getenv("UDF_FONT_DIR")
+    if user_font_dir:
+        search_dirs.insert(0, Path(user_font_dir).expanduser())
+
+    if sys.platform.startswith("win"):
+        windir = os.environ.get("WINDIR", r"C:\Windows")
+        search_dirs.append(Path(windir) / "Fonts")
+    elif sys.platform == "darwin":
+        search_dirs.extend([
+            Path("~/Library/Fonts").expanduser(),
+            Path("/Library/Fonts"),
+            Path("/System/Library/Fonts/Supplemental"),
+            Path("/System/Library/Fonts"),
+        ])
+    else:
+        search_dirs.extend([
+            Path("~/.local/share/fonts").expanduser(),
+            Path("~/.fonts").expanduser(),
+            Path("/usr/local/share/fonts"),
+            Path("/usr/share/fonts"),
+        ])
+
+    unique_dirs = []
+    seen = set()
     for directory in search_dirs:
+        key = str(directory)
+        if key not in seen:
+            unique_dirs.append(directory)
+            seen.add(key)
+    return unique_dirs
+
+
+def find_font_path(candidates):
+    candidate_set = {name.lower() for name in candidates}
+
+    for directory in get_font_search_dirs():
+        if not directory.is_dir():
+            continue
+
         for name in candidates:
-            path = os.path.join(directory, name)
-            if os.path.isfile(path):
-                return path
+            path = directory / name
+            if path.is_file():
+                return str(path)
+
+        for root, _, files in os.walk(directory):
+            for filename in files:
+                if filename.lower() in candidate_set:
+                    return str(Path(root) / filename)
     return None
 
 
@@ -54,31 +92,42 @@ def configure_fonts():
     regular = find_font_path([
         "NotoSerif-Regular.ttf",
         "DejaVuSerif.ttf",
+        "arial.ttf",
         "Times New Roman.ttf",
-        "Arial Unicode.ttf",
-        "Arial.ttf",
+        "times.ttf",
+        "LiberationSerif-Regular.ttf",
     ])
     bold = find_font_path([
         "NotoSerif-Bold.ttf",
         "DejaVuSerif-Bold.ttf",
+        "arialbd.ttf",
         "Times New Roman Bold.ttf",
-        "Arial Bold.ttf",
+        "timesbd.ttf",
+        "LiberationSerif-Bold.ttf",
     ])
     italic = find_font_path([
         "NotoSerif-Italic.ttf",
         "DejaVuSerif-Italic.ttf",
+        "ariali.ttf",
         "Times New Roman Italic.ttf",
-        "Arial Italic.ttf",
+        "timesi.ttf",
+        "LiberationSerif-Italic.ttf",
     ])
     bold_italic = find_font_path([
         "NotoSerif-BoldItalic.ttf",
         "DejaVuSerif-BoldItalic.ttf",
+        "arialbi.ttf",
         "Times New Roman Bold Italic.ttf",
-        "Arial Bold Italic.ttf",
+        "timesbi.ttf",
+        "LiberationSerif-BoldItalic.ttf",
     ])
 
     if not regular:
-        raise RuntimeError("No Unicode TTF font found. Please place a TTF in this folder or /Library/Fonts")
+        search_locations = "\n- ".join(str(p) for p in get_font_search_dirs())
+        raise RuntimeError(
+            "No supported TTF font found. Add Noto Serif or DejaVu Serif files to the 'fonts/' "
+            f"folder or set UDF_FONT_DIR.\nSearched:\n- {search_locations}"
+        )
 
     pdfmetrics.registerFont(TTFont("UDFBase", regular))
 
