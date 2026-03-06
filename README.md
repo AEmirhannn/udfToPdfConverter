@@ -1,6 +1,7 @@
 # UDF to PDF Converter
 
 Convert `.udf` files into PDF documents using Python and ReportLab.
+Make sure you trust the .udf files, that you pass to this script. ReportLab has some security issues, which makes running harmful scripts hidden in files possible.
 
 ## Features
 
